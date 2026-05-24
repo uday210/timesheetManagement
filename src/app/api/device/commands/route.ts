@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { deviceAuthorized } from "@/lib/deviceAuth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       .single();
     if (error) throw new Error(error.message);
 
-    const deadline = Date.now() + 25000;
+    const deadline = Date.now() + 55000;
     while (Date.now() < deadline) {
       await sleep(1000);
       const { data } = await db()
