@@ -205,14 +205,16 @@ export async function GET(request: Request) {
             email: { type: "string", description: "User's email (identity)." },
             hours: { type: "number", description: "Hours worked (0–168)." },
             description: { type: "string", description: "What the work was." },
-            date: {
+            work_date: {
               type: "string",
-              description: "Specific day worked (YYYY-MM-DD). Preferred. Optional.",
+              description:
+                "Specific day worked (YYYY-MM-DD). Preferred. Optional. " +
+                "(Named work_date, not 'date', because 'date' is an Apex reserved word.)",
             },
             week: {
               type: "string",
               description:
-                "Used only if date omitted: a date (YYYY-MM-DD) or 'this'/'last'/'next'.",
+                "Used only if work_date omitted: a date (YYYY-MM-DD) or 'this'/'last'/'next'.",
             },
           },
         },

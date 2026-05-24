@@ -30,7 +30,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const entry = await createEntry({
       email: body.email,
-      date: body.date,
+      // accept work_date (Salesforce-safe name), date (REST/MCP), or week fallback
+      date: body.work_date ?? body.date,
       week: body.week,
       description: body.description,
       hours: body.hours,
