@@ -1,14 +1,26 @@
-# Timesheet Portal
+# Timesheet & ITSM Agentic Platform
 
-A simple portal for logging daily hours and applying for leave. Users are
-identified by **email** — no passwords. The same data is reachable three ways:
+A Next.js 16 + Supabase app (deployed on Railway) that powers two things, both
+drivable from **Slack via Salesforce Agentforce agents**:
+
+1. **Timesheet & Leave Portal** — log daily hours and apply for leave from a web
+   UI, from Claude (MCP), or from Salesforce/Slack.
+2. **ITSM Hardware Agent POC** — a Slack agent that remotely operates a physical
+   **Epson ET‑2800 printer** (status, print, identify, scan, clear queue) via a
+   cloud relay + a local connector (`printer-connector/`).
+
+> 📄 **Full system documentation:** see [OVERVIEW.md](OVERVIEW.md) (also exported
+> as a PDF). Connector docs: [printer-connector/README.md](../printer-connector/README.md).
+
+Users are identified by **email** — no passwords. The timesheet data is reachable
+three ways:
 
 - **Web UI** — `/`
 - **MCP server** — `/api/mcp` (for Claude / any MCP client)
 - **REST API + OpenAPI** — `/api/timesheets`, described at `/api/openapi`
-  (ready to register as a Salesforce **External Service**)
+  (registered as Salesforce **External Services**)
 
-Built with Next.js 16 (App Router) + Supabase (Postgres).
+Built with Next.js 16 (App Router) + Supabase (Postgres + Storage).
 
 ---
 
@@ -135,6 +147,25 @@ To register ([docs](https://help.salesforce.com/s/articleView?id=platform.extern
    `logTimesheet`, `listTimesheets`, `deleteTimesheet` — usable in Flow / Apex.
 
 > Tip: set `APP_BASE_URL` to your Railway URL so the spec's server URL is stable.
+
+---
+
+## ITSM Hardware Agent (POC)
+
+A Slack Agentforce agent that remotely operates a physical Epson ET‑2800. The
+cloud can't reach a LAN printer, so a **local connector** bridges them via a
+command queue:
+
+```
+Slack → Hardware agent → runPrinterCommand (token-gated External Service)
+   → /api/device/commands (enqueue + long-poll) → device_commands queue
+   → local connector (printer-connector/) polls, runs on the printer, posts result
+```
+
+Commands: `status`, `identify`, `print_test`, `print_text`, `print_file`,
+`scan`, `clear_queue`, `restart` (stub). Device endpoints are gated by
+`DEVICE_API_TOKEN`; the OpenAPI spec is at `/api/device/openapi`. Full details in
+[OVERVIEW.md](OVERVIEW.md) and [printer-connector/README.md](../printer-connector/README.md).
 
 ---
 
