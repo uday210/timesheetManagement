@@ -6,6 +6,16 @@
  * so entries always group cleanly.
  */
 
+/** Validate/normalize a date string to YYYY-MM-DD (UTC). Throws if unparseable. */
+export function toISODate(input: unknown): string {
+  const raw = String(input ?? "").trim();
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) throw new Error(`Invalid date "${input}". Use YYYY-MM-DD.`);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    .toISOString()
+    .slice(0, 10);
+}
+
 /** Returns the YYYY-MM-DD of the Monday of the week containing `date` (UTC). */
 export function mondayOf(date: Date): string {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));

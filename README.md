@@ -1,7 +1,7 @@
 # Timesheet Portal
 
-A simple portal for logging weekly hours. Users are identified by **email** — no
-passwords. The same data is reachable three ways:
+A simple portal for logging daily hours and applying for leave. Users are
+identified by **email** — no passwords. The same data is reachable three ways:
 
 - **Web UI** — `/`
 - **MCP server** — `/api/mcp` (for Claude / any MCP client)
@@ -48,8 +48,14 @@ Create the `timesheet_entries` table by running the SQL in
 
 ## Web UI
 
-Enter your email once (stored in `localStorage`), then log hours with a week,
-description, and hours value. Entries are grouped by week with running totals.
+Enter your email once (stored in `localStorage`). Two tabs:
+
+- **Timesheet** — a week navigator with all 7 days in a row; add hours +
+  description per day, delete any entry, and **View all timesheets** for full
+  history grouped by week with totals.
+- **Leave** — apply for leave (date range, type, reason), see your requests with
+  status, and cancel them.
+
 Use **switch user** to change email.
 
 ---
@@ -62,11 +68,14 @@ Tools:
 
 | Tool | Arguments | What it does |
 | --- | --- | --- |
-| `log_timesheet` | `email`*, `hours`*, `description`*, `week?` | Logs hours for a week. |
+| `log_timesheet` | `email`*, `hours`*, `description`*, `date?`, `week?` | Logs hours for a day. |
 | `list_timesheets` | `email`*, `week?` | Lists entries grouped by week with totals. |
+| `apply_leave` | `email`*, `start_date`*, `end_date?`, `leave_type?`, `reason?` | Submits a leave request (status `pending`). |
+| `list_leaves` | `email`* | Lists leave requests with status and day counts. |
 
-`week` accepts a date (`2026-05-21`, any day in the week) or `this`/`last`/`next`;
-it defaults to the current week. The user is always identified by `email`.
+`date` is a specific day (`2026-05-21`); if omitted, `week` is used (a date or
+`this`/`last`/`next`, defaulting to the current week). The user is always
+identified by `email`.
 
 **Connect from Claude** — add to your MCP client config:
 
@@ -99,8 +108,15 @@ curl -s https://YOUR-APP.up.railway.app/api/mcp \
 | Method | Path | Body / query | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/timesheets` | `?email=&week=` | List grouped by week. |
-| `POST` | `/api/timesheets` | `{ email, hours, description, week? }` | Log an entry. |
+| `POST` | `/api/timesheets` | `{ email, hours, description, date?, week? }` | Log an entry. |
 | `DELETE` | `/api/timesheets/{id}` | `?email=` | Delete your own entry. |
+| `GET` | `/api/leaves` | `?email=` | List leave requests. |
+| `POST` | `/api/leaves` | `{ email, start_date, end_date?, leave_type?, reason? }` | Apply for leave. |
+| `DELETE` | `/api/leaves/{id}` | `?email=` | Cancel your own leave request. |
+
+Salesforce External Services generates `logTimesheet`, `listTimesheets`,
+`deleteTimesheet`, `applyLeave`, `listLeaves`, and `cancelLeave` actions from
+`/api/openapi`.
 
 ---
 
@@ -142,10 +158,24 @@ create table public.timesheet_entries (
   id          uuid primary key default gen_random_uuid(),
   user_email  text not null,
   week_start  date not null,            -- Monday of the week
+  work_date   date,                     -- the specific day worked
   description text not null,
   hours       numeric(5,2) not null check (hours >= 0 and hours <= 168),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
 alter table public.timesheet_entries enable row level security; -- service-role only
+
+create table public.leave_requests (
+  id          uuid primary key default gen_random_uuid(),
+  user_email  text not null,
+  start_date  date not null,
+  end_date    date not null,
+  leave_type  text not null default 'vacation', -- vacation | sick | personal | other
+  reason      text,
+  status      text not null default 'pending',  -- pending | approved | rejected | cancelled
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+alter table public.leave_requests enable row level security; -- service-role only
 ```

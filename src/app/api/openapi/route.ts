@@ -116,6 +116,85 @@ export async function GET(request: Request) {
           },
         },
       },
+      "/api/leaves": {
+        get: {
+          operationId: "listLeaves",
+          summary: "List a user's leave requests",
+          parameters: [
+            {
+              name: "email",
+              in: "query",
+              required: true,
+              description: "The user's email address (their identity).",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Leave requests",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LeaveList" },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          operationId: "applyLeave",
+          summary: "Apply for leave",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApplyLeaveRequest" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Created leave request",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/CreatedLeave" },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/leaves/{id}": {
+        delete: {
+          operationId: "cancelLeave",
+          summary: "Cancel one of the user's leave requests",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              description: "Leave request id (UUID).",
+              schema: { type: "string" },
+            },
+            {
+              name: "email",
+              in: "query",
+              required: true,
+              description: "The user's email; only their own requests can be cancelled.",
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Cancelled",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/DeleteResult" },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     components: {
       schemas: {
@@ -126,9 +205,14 @@ export async function GET(request: Request) {
             email: { type: "string", description: "User's email (identity)." },
             hours: { type: "number", description: "Hours worked (0–168)." },
             description: { type: "string", description: "What the work was." },
+            date: {
+              type: "string",
+              description: "Specific day worked (YYYY-MM-DD). Preferred. Optional.",
+            },
             week: {
               type: "string",
-              description: "Week: date (YYYY-MM-DD) or 'this'/'last'/'next'. Optional.",
+              description:
+                "Used only if date omitted: a date (YYYY-MM-DD) or 'this'/'last'/'next'.",
             },
           },
         },
@@ -138,6 +222,7 @@ export async function GET(request: Request) {
             id: { type: "string" },
             user_email: { type: "string" },
             week_start: { type: "string", description: "Monday of the week (YYYY-MM-DD)." },
+            work_date: { type: "string", description: "The specific day worked (YYYY-MM-DD)." },
             description: { type: "string" },
             hours: { type: "number" },
             created_at: { type: "string" },
@@ -175,6 +260,52 @@ export async function GET(request: Request) {
         DeleteResult: {
           type: "object",
           properties: { ok: { type: "boolean" } },
+        },
+        ApplyLeaveRequest: {
+          type: "object",
+          required: ["email", "start_date"],
+          properties: {
+            email: { type: "string", description: "User's email (identity)." },
+            start_date: { type: "string", description: "First day of leave (YYYY-MM-DD)." },
+            end_date: {
+              type: "string",
+              description: "Last day (YYYY-MM-DD). Optional; defaults to start_date.",
+            },
+            leave_type: {
+              type: "string",
+              enum: ["vacation", "sick", "personal", "other"],
+              description: "Type of leave. Defaults to 'vacation'.",
+            },
+            reason: { type: "string", description: "Optional reason / note." },
+          },
+        },
+        LeaveRequest: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            user_email: { type: "string" },
+            start_date: { type: "string" },
+            end_date: { type: "string" },
+            leave_type: { type: "string" },
+            reason: { type: "string" },
+            status: { type: "string", description: "pending | approved | rejected | cancelled" },
+            days: { type: "integer", description: "Inclusive day count." },
+            created_at: { type: "string" },
+            updated_at: { type: "string" },
+          },
+        },
+        CreatedLeave: {
+          type: "object",
+          properties: { leave: { $ref: "#/components/schemas/LeaveRequest" } },
+        },
+        LeaveList: {
+          type: "object",
+          properties: {
+            leaves: {
+              type: "array",
+              items: { $ref: "#/components/schemas/LeaveRequest" },
+            },
+          },
         },
       },
     },

@@ -5,12 +5,13 @@
  * same validation, same week normalization, same shape coming back out.
  */
 import { db } from "./db";
-import { resolveWeek, weekLabel } from "./week";
+import { resolveWeek, weekLabel, toISODate, mondayOf } from "./week";
 
 export interface TimesheetEntry {
   id: string;
   user_email: string;
   week_start: string; // YYYY-MM-DD (Monday)
+  work_date: string; // YYYY-MM-DD (the specific day worked)
   description: string;
   hours: number;
   created_at: string;
@@ -48,7 +49,8 @@ export interface CreateInput {
   email: unknown;
   hours: unknown;
   description: unknown;
-  week?: string | null;
+  date?: string | null; // a specific day (YYYY-MM-DD) — preferred
+  week?: string | null; // fallback: any day in the week, or this/last/next
 }
 
 /** Log a new timesheet entry. Returns the saved row. */
@@ -57,11 +59,21 @@ export async function createEntry(input: CreateInput): Promise<TimesheetEntry> {
   const hours = normalizeHours(input.hours);
   const description = String(input.description ?? "").trim();
   if (!description) throw new Error("Description is required.");
-  const week_start = resolveWeek(input.week);
+
+  // Prefer an explicit day; otherwise fall back to a week reference (use its Monday).
+  let work_date: string;
+  let week_start: string;
+  if (input.date) {
+    work_date = toISODate(input.date);
+    week_start = mondayOf(new Date(work_date + "T00:00:00Z"));
+  } else {
+    week_start = resolveWeek(input.week);
+    work_date = week_start;
+  }
 
   const { data, error } = await db()
     .from(TABLE)
-    .insert({ user_email, week_start, description, hours })
+    .insert({ user_email, week_start, work_date, description, hours })
     .select()
     .single();
 
@@ -81,7 +93,8 @@ export async function listEntries(
     .select("*")
     .eq("user_email", user_email)
     .order("week_start", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("work_date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (week) q = q.eq("week_start", resolveWeek(week));
 

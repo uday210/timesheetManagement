@@ -16,6 +16,7 @@ import {
   groupByWeek,
   type WeekGroup,
 } from "@/lib/timesheet";
+import { applyLeave, listLeaves, LEAVE_TYPES } from "@/lib/leave";
 import { weekLabel } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
@@ -37,9 +38,14 @@ const TOOLS = [
         email: { type: "string", description: "The user's email address (their identity)." },
         hours: { type: "number", description: "Hours worked (0–168)." },
         description: { type: "string", description: "What the work was." },
+        date: {
+          type: "string",
+          description: "The specific day worked (YYYY-MM-DD). Preferred. Optional.",
+        },
         week: {
           type: "string",
-          description: "Week reference: a date like 2026-05-21, or 'this'/'last'/'next'. Optional.",
+          description:
+            "Used only if `date` is omitted: a date like 2026-05-21, or 'this'/'last'/'next'.",
         },
       },
       required: ["email", "hours", "description"],
@@ -58,6 +64,41 @@ const TOOLS = [
           type: "string",
           description: "Optional week filter: a date like 2026-05-21, or 'this'/'last'/'next'.",
         },
+      },
+      required: ["email"],
+    },
+  },
+  {
+    name: "apply_leave",
+    description:
+      "Apply for leave for a user (identified by email). Provide a start date and " +
+      "optionally an end date (defaults to a single day). Status starts as 'pending'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "The user's email address (their identity)." },
+        start_date: { type: "string", description: "First day of leave (YYYY-MM-DD)." },
+        end_date: {
+          type: "string",
+          description: "Last day of leave (YYYY-MM-DD). Optional; defaults to start_date.",
+        },
+        leave_type: {
+          type: "string",
+          enum: [...LEAVE_TYPES],
+          description: "Type of leave. Defaults to 'vacation'.",
+        },
+        reason: { type: "string", description: "Optional reason / note." },
+      },
+      required: ["email", "start_date"],
+    },
+  },
+  {
+    name: "list_leaves",
+    description: "List a user's leave requests (identified by email) with status and day counts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "The user's email address (their identity)." },
       },
       required: ["email"],
     },
@@ -95,11 +136,12 @@ async function callTool(name: string, args: Record<string, unknown>) {
         email: args.email,
         hours: args.hours,
         description: args.description,
+        date: args.date as string | undefined,
         week: args.week as string | undefined,
       });
       const text =
-        `Logged ${entry.hours}h for ${entry.user_email} ` +
-        `in the week of ${weekLabel(entry.week_start)}: "${entry.description}".`;
+        `Logged ${entry.hours}h for ${entry.user_email} on ${entry.work_date} ` +
+        `(week of ${weekLabel(entry.week_start)}): "${entry.description}".`;
       return { content: [{ type: "text", text }], structuredContent: entry };
     }
     case "list_timesheets": {
@@ -109,6 +151,39 @@ async function callTool(name: string, args: Record<string, unknown>) {
         content: [{ type: "text", text: summarizeWeeks(weeks) }],
         structuredContent: { weeks },
       };
+    }
+    case "apply_leave": {
+      const leave = await applyLeave({
+        email: args.email,
+        start_date: args.start_date,
+        end_date: args.end_date,
+        leave_type: args.leave_type,
+        reason: args.reason,
+      });
+      const span =
+        leave.start_date === leave.end_date
+          ? leave.start_date
+          : `${leave.start_date} → ${leave.end_date}`;
+      const text =
+        `Leave request submitted for ${leave.user_email}: ${leave.leave_type}, ` +
+        `${span} (${leave.days} day${leave.days === 1 ? "" : "s"}) — status ${leave.status}.`;
+      return { content: [{ type: "text", text }], structuredContent: leave };
+    }
+    case "list_leaves": {
+      const leaves = await listLeaves(args.email);
+      const text =
+        leaves.length === 0
+          ? "No leave requests found."
+          : leaves
+              .map((l) => {
+                const span =
+                  l.start_date === l.end_date
+                    ? l.start_date
+                    : `${l.start_date} → ${l.end_date}`;
+                return `• ${l.leave_type} — ${span} (${l.days}d) — ${l.status}${l.reason ? ` — ${l.reason}` : ""}`;
+              })
+              .join("\n");
+      return { content: [{ type: "text", text }], structuredContent: { leaves } };
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

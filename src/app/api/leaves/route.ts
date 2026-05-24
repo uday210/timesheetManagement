@@ -1,9 +1,9 @@
 /**
- * /api/timesheets — list (GET) and log (POST) timesheet entries for the UI.
+ * /api/leaves — list (GET) and apply for (POST) leave requests.
  * Identity is the `email` the client sends; there is no session.
  */
 import { NextResponse } from "next/server";
-import { createEntry, listEntries, groupByWeek } from "@/lib/timesheet";
+import { applyLeave, listLeaves } from "@/lib/leave";
 
 export const dynamic = "force-dynamic";
 
@@ -11,15 +11,11 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
-    const week = searchParams.get("week");
     if (!email) {
       return NextResponse.json({ error: "Missing ?email" }, { status: 400 });
     }
-
-    const entries = await listEntries(email, week);
-    const weeks = groupByWeek(entries);
-    const total = weeks.reduce((sum, w) => sum + w.total_hours, 0);
-    return NextResponse.json({ weeks, total_hours: Math.round(total * 100) / 100 });
+    const leaves = await listLeaves(email);
+    return NextResponse.json({ leaves });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
@@ -28,14 +24,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const entry = await createEntry({
+    const leave = await applyLeave({
       email: body.email,
-      date: body.date,
-      week: body.week,
-      description: body.description,
-      hours: body.hours,
+      start_date: body.start_date,
+      end_date: body.end_date,
+      leave_type: body.leave_type,
+      reason: body.reason,
     });
-    return NextResponse.json({ entry }, { status: 201 });
+    return NextResponse.json({ leave }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
