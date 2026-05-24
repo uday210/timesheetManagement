@@ -71,6 +71,22 @@ export async function createEntry(input: CreateInput): Promise<TimesheetEntry> {
     work_date = week_start;
   }
 
+  // Can't log hours on a day the user is on leave (any non-rejected request).
+  const { data: leaves, error: leaveErr } = await db()
+    .from("leave_requests")
+    .select("leave_type")
+    .eq("user_email", user_email)
+    .lte("start_date", work_date)
+    .gte("end_date", work_date)
+    .neq("status", "rejected")
+    .limit(1);
+  if (leaveErr) throw new Error(leaveErr.message);
+  if (leaves && leaves.length > 0) {
+    throw new Error(
+      `Can't log hours on ${work_date} — you have ${leaves[0].leave_type} leave that day.`,
+    );
+  }
+
   const { data, error } = await db()
     .from(TABLE)
     .insert({ user_email, week_start, work_date, description, hours })

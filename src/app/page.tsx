@@ -157,6 +157,7 @@ function TimesheetTab({
 }) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [leaves, setLeaves] = useState<Leave[]>([]);
   const [drafts, setDrafts] = useState<Record<string, { hours: string; description: string }>>({});
   const [showAll, setShowAll] = useState(false);
   const [allWeeks, setAllWeeks] = useState<WeekGroup[]>([]);
@@ -189,12 +190,28 @@ function TimesheetTab({
     }
   }, [email, onError]);
 
+  const loadLeaves = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/leaves?email=${encodeURIComponent(email)}`);
+      const d = await r.json();
+      if (r.ok) setLeaves((d.leaves as Leave[]).filter((l) => l.status !== "rejected"));
+    } catch {
+      /* leave info is best-effort; the server still blocks on save */
+    }
+  }, [email]);
+
   useEffect(() => {
     loadWeek(weekStart);
   }, [weekStart, loadWeek]);
   useEffect(() => {
+    loadLeaves();
+  }, [loadLeaves]);
+  useEffect(() => {
     if (showAll) loadAll();
   }, [showAll, loadAll]);
+
+  const leaveOn = (date: string) =>
+    leaves.find((l) => l.start_date <= date && date <= l.end_date);
 
   async function addForDay(date: string) {
     const draft = drafts[date] || { hours: "", description: "" };
@@ -235,7 +252,12 @@ function TimesheetTab({
 
   const days = DAY_NAMES.map((name, i) => {
     const date = addDays(weekStart, i);
-    return { name, date, entries: entries.filter((e) => e.work_date === date) };
+    return {
+      name,
+      date,
+      entries: entries.filter((e) => e.work_date === date),
+      leave: leaveOn(date),
+    };
   });
   const weekTotal = entries.reduce((s, e) => s + Number(e.hours), 0);
 
@@ -281,7 +303,9 @@ function TimesheetTab({
         {days.map((d) => (
           <div
             key={d.date}
-            className="flex min-w-[150px] flex-1 flex-col rounded-lg border border-gray-200 p-2"
+            className={`flex min-w-[150px] flex-1 flex-col rounded-lg border p-2 ${
+              d.leave ? "border-amber-200 bg-amber-50" : "border-gray-200"
+            }`}
           >
             <div className="mb-2 flex items-baseline justify-between">
               <span className="text-sm font-medium">{d.name}</span>
@@ -309,32 +333,39 @@ function TimesheetTab({
               ))}
             </ul>
 
-            <div className="mt-auto space-y-1">
-              <input
-                type="number"
-                step="0.25"
-                min="0"
-                max="168"
-                placeholder="hrs"
-                value={drafts[d.date]?.hours ?? ""}
-                onChange={(e) => setDraft(d.date, { hours: e.target.value })}
-                className="w-full rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
-              />
-              <input
-                type="text"
-                placeholder="description"
-                value={drafts[d.date]?.description ?? ""}
-                onChange={(e) => setDraft(d.date, { description: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && addForDay(d.date)}
-                className="w-full rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
-              />
-              <button
-                onClick={() => addForDay(d.date)}
-                className="w-full rounded bg-gray-900 py-1 text-xs font-medium text-white hover:bg-gray-700"
-              >
-                Add
-              </button>
-            </div>
+            {d.leave ? (
+              <div className="mt-auto rounded-md border border-amber-200 bg-amber-100 px-2 py-2 text-center text-xs font-medium capitalize text-amber-800">
+                On leave
+                <div className="font-normal lowercase">{d.leave.leave_type}</div>
+              </div>
+            ) : (
+              <div className="mt-auto space-y-1">
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0"
+                  max="168"
+                  placeholder="hrs"
+                  value={drafts[d.date]?.hours ?? ""}
+                  onChange={(e) => setDraft(d.date, { hours: e.target.value })}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
+                />
+                <input
+                  type="text"
+                  placeholder="description"
+                  value={drafts[d.date]?.description ?? ""}
+                  onChange={(e) => setDraft(d.date, { description: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && addForDay(d.date)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs outline-none focus:border-gray-900"
+                />
+                <button
+                  onClick={() => addForDay(d.date)}
+                  className="w-full rounded bg-gray-900 py-1 text-xs font-medium text-white hover:bg-gray-700"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
