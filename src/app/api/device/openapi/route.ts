@@ -37,7 +37,8 @@ export async function GET(request: Request) {
           description:
             "Commands: 'status' (state + ink + issues), 'identify' (printer beeps/flashes), " +
             "'print_test' (diagnostic page), 'print_text' (print the provided text), " +
-            "'print_file' (download and print the file at fileUrl), 'clear_queue' (clear stuck jobs), " +
+            "'print_file' (download and print the file at fileUrl), 'scan' (scan the glass and " +
+            "return a viewable image URL in the summary), 'clear_queue' (clear stuck jobs), " +
             "'restart' (power-cycle; only if a smart plug is configured).",
           requestBody: {
             required: true,
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
                 "print_test",
                 "print_text",
                 "print_file",
+                "scan",
                 "clear_queue",
                 "restart",
               ],
