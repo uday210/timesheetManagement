@@ -1,8 +1,6 @@
 [build]
 builder = "nixpacks"
-
-[build.nixpacks]
-NODE_VERSION = "22"
+# Node version is pinned via .nvmrc and package.json "engines" (Nixpacks reads those).
 
 [deploy]
 startCommand = "npm start"

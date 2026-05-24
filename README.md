@@ -41,8 +41,8 @@ browser never talks to Supabase directly; it goes through the `/api` routes.
    ```
    Open http://localhost:3000.
 
-The `timesheet_entries` table already exists (migration `create_timesheet_entries`).
-To recreate it elsewhere, see [Database schema](#database-schema) below.
+Create the `timesheet_entries` table by running the SQL in
+[Database schema](#database-schema) once in your project's SQL Editor.
 
 ---
 
