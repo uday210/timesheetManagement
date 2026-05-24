@@ -252,11 +252,15 @@ function TimesheetTab({
 
   const days = DAY_NAMES.map((name, i) => {
     const date = addDays(weekStart, i);
+    const dayEntries = entries.filter((e) => e.work_date === date);
+    const total = Math.round(dayEntries.reduce((s, e) => s + Number(e.hours), 0) * 100) / 100;
     return {
       name,
       date,
-      entries: entries.filter((e) => e.work_date === date),
+      entries: dayEntries,
       leave: leaveOn(date),
+      total,
+      under: total > 0 && total < 8, // logged, but short of a full 8h day
     };
   });
   const weekTotal = entries.reduce((s, e) => s + Number(e.hours), 0);
@@ -304,12 +308,30 @@ function TimesheetTab({
           <div
             key={d.date}
             className={`flex min-w-[150px] flex-1 flex-col rounded-lg border p-2 ${
-              d.leave ? "border-amber-200 bg-amber-50" : "border-gray-200"
+              d.leave
+                ? "border-amber-200 bg-amber-50"
+                : d.under
+                  ? "border-orange-300 bg-orange-50"
+                  : "border-gray-200"
             }`}
           >
             <div className="mb-2 flex items-baseline justify-between">
-              <span className="text-sm font-medium">{d.name}</span>
-              <span className="text-xs text-gray-400">{dayNum(d.date)}</span>
+              <span className="text-sm font-medium">
+                {d.name} <span className="font-normal text-gray-400">{dayNum(d.date)}</span>
+              </span>
+              {d.entries.length > 0 && (
+                <span
+                  className={`text-xs font-semibold ${
+                    d.under
+                      ? "text-orange-600"
+                      : d.total >= 8
+                        ? "text-green-600"
+                        : "text-gray-500"
+                  }`}
+                >
+                  {d.total}h
+                </span>
+              )}
             </div>
 
             <ul className="mb-2 space-y-1">
