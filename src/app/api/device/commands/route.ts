@@ -23,9 +23,11 @@ export async function POST(request: Request) {
     const command = String(body.command || "").trim();
     if (!command) return NextResponse.json({ error: "Missing command" }, { status: 400 });
 
+    const params =
+      body.params ?? { text: body.text ?? null, fileUrl: body.fileUrl ?? null };
     const { data: cmd, error } = await db()
       .from("device_commands")
-      .insert({ device, command, params: body.params ?? null })
+      .insert({ device, command, params })
       .select("id")
       .single();
     if (error) throw new Error(error.message);

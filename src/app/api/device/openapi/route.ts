@@ -36,7 +36,8 @@ export async function GET(request: Request) {
           summary: "Run a command on the printer and return the result",
           description:
             "Commands: 'status' (state + ink + issues), 'identify' (printer beeps/flashes), " +
-            "'print_test' (print a diagnostic page), 'clear_queue' (clear stuck print jobs), " +
+            "'print_test' (diagnostic page), 'print_text' (print the provided text), " +
+            "'print_file' (download and print the file at fileUrl), 'clear_queue' (clear stuck jobs), " +
             "'restart' (power-cycle; only if a smart plug is configured).",
           requestBody: {
             required: true,
@@ -67,8 +68,25 @@ export async function GET(request: Request) {
           properties: {
             command: {
               type: "string",
-              enum: ["status", "identify", "print_test", "clear_queue", "restart"],
+              enum: [
+                "status",
+                "identify",
+                "print_test",
+                "print_text",
+                "print_file",
+                "clear_queue",
+                "restart",
+              ],
               description: "The action to perform on the printer.",
+            },
+            text: {
+              type: "string",
+              description: "Text to print. Required when command is 'print_text'.",
+            },
+            fileUrl: {
+              type: "string",
+              description:
+                "URL of a PDF/image to download and print. Required when command is 'print_file'.",
             },
             device: {
               type: "string",
