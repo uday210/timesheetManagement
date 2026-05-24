@@ -39,14 +39,18 @@ export async function POST(request: Request) {
         .eq("id", cmd.id)
         .single();
       if (data && (data.status === "done" || data.status === "error")) {
-        return NextResponse.json({ id: cmd.id, status: data.status, result: data.result });
+        const r = data.result as unknown;
+        const summary =
+          r && typeof r === "object" && "summary" in r
+            ? (r as { summary: string }).summary
+            : typeof r === "string"
+              ? r
+              : "Done.";
+        return NextResponse.json({ id: cmd.id, status: data.status, summary, result: r });
       }
     }
-    return NextResponse.json({
-      id: cmd.id,
-      status: "timeout",
-      result: "The device connector didn't respond in time — is it running and online?",
-    });
+    const msg = "The device connector didn't respond in time — is it running and online?";
+    return NextResponse.json({ id: cmd.id, status: "timeout", summary: msg, result: msg });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
