@@ -1,6 +1,6 @@
 {
-  "name": "timesheet-portal-build",
-  "version": "0.1.0",
+  "name": "timesheet-portal",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
